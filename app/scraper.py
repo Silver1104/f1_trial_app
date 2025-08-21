@@ -1,5 +1,7 @@
 from decimal import Decimal
 from fastapi import Depends
+from pydantic import constr
+import requests
 from sqlmodel import Session, select
 import pandas as pd
 import re
@@ -7,7 +9,7 @@ from app.database import get_session
 import app.models as models
 
 # from app.database import get_session
-
+current = 2025
 WEB_URL = "https://en.wikipedia.org/wiki/List_of_Formula_One_drivers"
 
 def fetch_and_insert_new_drivers(db: Session = Depends(get_session)):
@@ -89,3 +91,85 @@ def fetch_and_insert_new_drivers(db: Session = Depends(get_session)):
 
     db.commit()
     print("New rows: ", new_entries)
+
+def fetch_current_season_drivers(db: Session = Depends(get_session)):
+    url = f"https://api.jolpi.ca/ergast/f1/{current}/driverstandings"
+    res = requests.get(url)
+    current_season_drivers = res.json()["MRData"]["StandingsTable"]["StandingsLists"][0]["DriverStandings"]
+    existing_drivers = {driver.id: driver for driver in db.exec(select(models.Current_Drivers)).all()}
+    current_season_drivers_id = set()
+    for driver_stats in current_season_drivers:
+        position = driver_stats["position"]
+        points = driver_stats["points"]
+        d = driver_stats["Driver"]
+        driver_id = d["driverId"]
+        current_season_drivers_id.add(driver_id)
+        full_name = f"{d['givenName']} {d['familyName']}"
+        perm_number = d["permanentNumber"]
+        code = d["code"]
+        dob = d["dateOfBirth"]
+        nationality = d["nationality"]
+        constructor = driver_stats["Constructors"][-1]['name']
+        if driver_id in existing_drivers:
+            driver = existing_drivers[driver_id]
+            driver.active = True
+            if driver.curr_team != constructor or driver.full_name != full_name or driver.code != code or driver.perm_number != perm_number or driver.curr_points != points or driver.curr_pos != position:
+                driver.full_name = full_name
+                driver.code = code
+                driver.curr_points = points
+                driver.curr_pos = position
+                driver.perm_number = perm_number
+                driver.curr_team = constructor
+                db.add(driver)
+        else:
+            driver = models.Current_Drivers(
+                id=driver_id,
+                perm_number=perm_number,
+                code=code,
+                full_name = full_name,
+                dob = dob,
+                nationality=nationality,
+                curr_points=points,
+                curr_pos=position,
+                curr_team=constructor
+            )
+            db.add(driver)
+
+    for driver in existing_drivers.values():
+        if driver.id not in current_season_drivers_id and driver.active:
+            driver.active = False
+            db.add(driver)
+        
+    db.commit()
+
+def fetch_current_season_constructors(db: Session = Depends(get_session)):
+    url = f"https://api.jolpi.ca/ergast/f1/{current}/constructorstandings"
+    res = requests.get(url)
+    current_season_constructors = res.json()["MRData"]["StandingsTable"]["StandingsLists"][0]["ConstructorStandings"]
+    existing_constructors = {constructor.id: constructor for constructor in db.exec(select(models.Current_Constructors)).all()}
+    current_season_constructors_id = set()
+    for constructor_stats in current_season_constructors:
+        position = constructor_stats["position"]
+        points = constructor_stats["points"]
+        d = constructor_stats["Constructor"]
+        constructor_id = d["constructorId"]
+        current_season_constructors_id.add(constructor_id)
+        name = d["name"]
+        nationality = d["nationality"]
+        if constructor_id in existing_constructors:
+            constructor = existing_constructors[constructor_id]
+            if constructor.curr_points != points or constructor.curr_pos != position:
+                constructor.curr_points = points
+                constructor.curr_pos = position
+                db.add(constructor)
+        else:
+            constructor = models.Current_Constructors(
+                id=constructor_id,
+                name=name,
+                nationality=nationality,
+                curr_points=points,
+                curr_pos=position,
+            )
+            db.add(constructor)
+        
+    db.commit()

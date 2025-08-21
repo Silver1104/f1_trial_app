@@ -3,7 +3,7 @@
 import { useF1Races } from '@/hooks/useF1Data';
 import { Calendar, Clock, MapPin, Flag, Play, Pause } from 'lucide-react';
 import { useState } from 'react';
-
+import Image from 'next/image';
 // Country to flag emoji mapping
 const countryFlags: { [key: string]: string } = {
   'Australia': '🇦🇺',
@@ -28,6 +28,39 @@ const countryFlags: { [key: string]: string } = {
   'Qatar': '🇶🇦',
   'UAE': '🇦🇪',
 };
+
+const circuitImages: { [key: string]: string } = {
+  'albert_park': 'albert_park.jpg',
+  'shanghai': 'shanghai.jpg', 
+  'suzuka': 'suzuka.jpg',
+  'bahrain': 'bahrain.jpg',
+  'jeddah': 'jeddah.jpg',
+  'miami': 'miami.jpg',
+  'imola': 'imola.jpg',
+  'monaco': 'monaco.jpg',
+  'catalunya': 'catalunya.jpg',
+  'villeneuve': 'villeneuve.jpg',
+  'red_bull_ring': 'red_bull_ring.jpg',
+  'silverstone': 'silverstone.jpg',
+  'spa': 'spa.jpg',
+  'hungaroring': 'hungaroring.jpg',
+  'zandvoort': 'zandvoort.avif',
+  'monza': 'monza.jpg',
+  'baku': 'baku.jpg',
+  'marina_bay': 'marina_bay.jpg',
+  'americas': 'americas.jpg',
+  'rodriguez': 'rodriguez.jpg',
+  'interlagos': 'interlagos.jpg',
+  'vegas': 'vegas.jpg',
+  'losail': 'losail.jpg',
+  'yas_marina': 'yas_marina.jpg',
+};
+
+// Helper function to get circuit image
+const getCircuitImage = (circuitId: string): string => {
+  return circuitImages[circuitId] || 'default_circuit.jpg';
+};
+
 
 export default function SeasonProgressBar() {
   const { raceProgress, seasonProgress, currentRace, nextRace, isLoading, error } = useF1Races();
@@ -113,60 +146,88 @@ export default function SeasonProgressBar() {
         </button>
       </div>
 
-      {/* Current/Next Race Info */}
-      {/* Current/Next Race Info */}
     {(currentRace || nextRace) && (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        {currentRace && (
-        <div className="bg-red-600/20 border border-red-600/50 rounded-lg p-4">
-            <div className="flex items-center text-red-400 mb-2">
-            <Play className="w-4 h-4 mr-2" />
-            <span className="font-semibold">LIVE NOW</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {currentRace && (
+            <div 
+                className="relative bg-red-600/20 border border-red-600/50 rounded-lg p-4 overflow-hidden"
+                style={{
+                backgroundImage: `url(/circuits/${getCircuitImage(currentRace.Circuit.circuitId)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: '85% center', // Adjust this: increase to shift more right
+                backgroundRepeat: 'no-repeat'
+                }}
+            >
+                <div className="absolute inset-0 bg-red-600/30 backdrop-blur-[0.5px]"></div>
+                
+                <div className="relative z-10">
+                <div className="flex items-center text-red-400 mb-4">
+                    <Play className="w-4 h-4 mr-2" />
+                    <span className="font-semibold">LIVE NOW</span>
+                </div>
+                
+                <h3 className="text-white font-bold flex items-center mb-3 drop-shadow-sm">
+                    <span className="text-2xl mr-3">{getCountryFlag(currentRace.Circuit.Location.country)}</span>
+                    {currentRace.raceName}
+                </h3>
+                
+                <p className="text-gray-200 text-sm flex items-center mb-2 drop-shadow-sm">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {currentRace.Circuit.Location.locality}, {currentRace.Circuit.Location.country}
+                </p>
+                
+                {raceProgress.find(r => r.race.round === currentRace.round)?.currentSession && (
+                    <div className="px-3 py-1 bg-red-600 text-white text-xs rounded-full font-semibold inline-block shadow-lg">
+                    🔴 {raceProgress.find(r => r.race.round === currentRace.round)?.currentSession}
+                    </div>
+                )}
+                </div>
             </div>
-            <h3 className="text-white font-bold flex items-center">
-            <span className="text-2xl mr-3">{getCountryFlag(currentRace.Circuit.Location.country)}</span>
-            {currentRace.raceName}
-            </h3>
-            <p className="text-gray-300 text-sm flex items-center">
-            <MapPin className="w-3 h-3 mr-1" />
-            {currentRace.Circuit.Location.locality}, {currentRace.Circuit.Location.country}
-            </p>
-            {raceProgress.find(r => r.race.round === currentRace.round)?.currentSession && (
-            <div className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded font-semibold">
-                {raceProgress.find(r => r.race.round === currentRace.round)?.currentSession}
+            )}
+
+            {nextRace && !currentRace && (
+            <div 
+                className="relative bg-blue-600/20 border border-blue-600/50 rounded-lg p-4 overflow-hidden"
+                style={{
+                backgroundImage: `url(/circuits/${getCircuitImage(nextRace.Circuit.circuitId)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: '85% center', // FIXED: should be 'center', not 'right'
+                backgroundRepeat: 'no-repeat'
+                }}
+            >
+                <div className="absolute inset-0 bg-blue-600/60 backdrop-blur-[0.5px]"></div>
+                
+                <div className="relative z-10">
+                <div className="flex items-center text-blue-400 mb-4">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    <span className="font-semibold">NEXT RACE</span>
+                </div>
+                
+                <h3 className="text-white font-bold flex items-center mb-3 drop-shadow-sm">
+                    <span className="text-2xl mr-3">{getCountryFlag(nextRace.Circuit.Location.country)}</span>
+                    {nextRace.raceName}
+                </h3>
+                
+                <p className="text-gray-200 text-sm flex items-center mb-2 drop-shadow-sm">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {nextRace.Circuit.Location.locality}, {nextRace.Circuit.Location.country}
+                </p>
+                
+                <p className="text-gray-300 text-sm flex items-center drop-shadow-sm">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {formatDateTime(nextRace.date, nextRace.time)} IST
+                    {getTimeUntilNext(nextRace) && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded shadow-lg">
+                        in {getTimeUntilNext(nextRace)}
+                    </span>
+                    )}
+                </p>
+                </div>
             </div>
             )}
         </div>
         )}
-        
-        {nextRace && !currentRace && (
-        <div className="bg-blue-600/20 border border-blue-600/50 rounded-lg p-4">
-            <div className="flex items-center text-blue-400 mb-2">
-            <Calendar className="w-4 h-4 mr-2" />
-            <span className="font-semibold">NEXT RACE</span>
-            </div>
-            {/* 👇 ADDED COUNTRY FLAG HERE */}
-            <h3 className="text-white font-bold flex items-center">
-            <span className="text-2xl mr-3">{getCountryFlag(nextRace.Circuit.Location.country)}</span>
-            {nextRace.raceName}
-            </h3>
-            <p className="text-gray-300 text-sm flex items-center">
-            <MapPin className="w-3 h-3 mr-1" />
-            {nextRace.Circuit.Location.locality}, {nextRace.Circuit.Location.country}
-            </p>
-            <p className="text-gray-400 text-sm flex items-center mt-1">
-            <Clock className="w-3 h-3 mr-1" />
-            {formatDateTime(nextRace.date, nextRace.time)} IST
-            {getTimeUntilNext(nextRace) && (
-                <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded">
-                in {getTimeUntilNext(nextRace)}
-                </span>
-            )}
-            </p>
-        </div>
-        )}
-    </div>
-    )}
+
 
 
       {/* Progress Bar */}
